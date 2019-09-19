@@ -1,2 +1,2 @@
-# active_learning
+# Active Learning
 Active Learning for text classification
