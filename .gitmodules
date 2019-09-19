@@ -1,0 +1,3 @@
+[submodule "flair"]
+	path = flair
+	url = https://github.com/kunwar31/flair/
