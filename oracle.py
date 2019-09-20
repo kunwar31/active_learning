@@ -1,5 +1,5 @@
 from typing import List
-from flair.data import Sentence
+from .flair.data import Sentence
 from time import time
 
 

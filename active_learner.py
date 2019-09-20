@@ -1,8 +1,8 @@
 import numpy as np
 from typing import List
-from flair.data import Sentence
-from flair.trainers import ModelTrainer
-from flair.optim import AdamW
+from .flair.data import Sentence
+from .flair.trainers import ModelTrainer
+from .flair.optim import AdamW
 
 
 class ActiveLearner:
