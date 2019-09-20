@@ -1,2 +1,2 @@
 from .active_learner import ActiveLearner
-from .oracle import Oracle, MemoryOracle, RuledOracle, HumanOracle, MultiSourceOracle
+from .oracle import Oracle, MemoryOracle, RuledOracle, HumanOracle, HybridOracle

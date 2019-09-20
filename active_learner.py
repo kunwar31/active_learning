@@ -9,11 +9,9 @@ class ActiveLearner:
     def __init__(self,
                  sentences: List[Sentence],
                  experiment_name: str,
-                 data_path: str,
                  oracle,
                  embeddings_storage_mode='cpu',
                  ):
-        self.data_path = data_path
         self.sentences = sentences
         self.oracle = oracle
         self.experiment_name = experiment_name
@@ -21,7 +19,7 @@ class ActiveLearner:
 
     def train_model(self, corpus, classifier, optimizer_state=None, epoch=1, lr=1e-5):
         trainer = ModelTrainer(classifier, corpus, optimizer=AdamW, optimizer_state=optimizer_state)
-        result = trainer.train(f'{self.data_path}/{self.experiment_name}/',
+        result = trainer.train(f'{self.experiment_name}/',
                                learning_rate=lr,
                                min_learning_rate=1e-8,
                                mini_batch_size=32,
