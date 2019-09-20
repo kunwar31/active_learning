@@ -60,10 +60,12 @@ class HumanOracle(RuledOracle):
     def __init__(self):
         def human_labeler(sample):
             print(sample)
-            print('Y/N - Y for correct N for wrong')
+            print('Y/N/S - Y for correct N for wrong S for Skip')
             choice = input()
             if choice.lower() == 'y':
                 return 1
+            if choice.lower() == 's':
+                return None
             return 0
 
         super().__init__(human_labeler)
@@ -139,8 +141,6 @@ class HybridOracle(Oracle):
     def get_labelled_corpus(self, samples: List[Sentence]):
         train_file_name = f'labelled_{len(samples)}_{int(time())}.csv'
         self.save_labelled_csv(samples, train_file_name)
-        if self.use_memory:
-            self.memory_oracle.read_all_labelled_data()
         corpus = CSVClassificationCorpus(data_folder=self.experiment_name,
                                          column_name_map={0: 'text', 1: 'label'},
                                          train_file=train_file_name,
@@ -149,13 +149,28 @@ class HybridOracle(Oracle):
                                          skip_header=False)
         return corpus
 
-    def save_labelled_csv(self, samples: List[Sentence], file_name):
-        print('STARTING LABELLING')
+    def _get_labels_for_samples(self, samples: List[Sentence]):
         labels = []
         total_len = len(samples)
         for idx, sample in enumerate(samples):
-            print(f'DONE {idx+1}/{total_len} LABELS')
-            labels.append(self.get_label(sample))
+            print(f'DONE {idx + 1}/{total_len} LABELS')
+            label = self.get_label(sample)
+            labels.append(label)
+            if self.use_memory and label is not None:
+                self.memory_oracle.memory[sample.to_plain_string()] = label
+        return labels
+
+    def save_labelled_csv(self, samples: List[Sentence], file_name):
+        print('STARTING LABELLING')
+        labels = self._get_labels_for_samples(samples)
+
+        while None in labels:
+            print('Re-Label skipped samples? Y/N')
+            choice = input()
+            if choice.lower() != 'y':
+                break
+            labels = self._get_labels_for_samples(samples)
+
         with open(file_name, 'w') as f:
             for idx in range(len(samples)):
                 f.write(f'"{samples[idx].to_plain_string()}", {labels[idx]}\n')
