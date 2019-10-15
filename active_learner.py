@@ -8,8 +8,8 @@ from flair.optim import AdamW
 class ActiveLearner:
     def __init__(self,
                  sentences: List[Sentence],
-                 experiment_name: str,
-                 data_path: str,
+                 experiment_name: str = "default_experiment_name",
+                 data_path: str = "default_experiment_path",
                  oracle,
                  embeddings_storage_mode='cpu',
                  ):
@@ -48,6 +48,7 @@ class ActiveLearner:
                 sentence_sample.append(self.sentences[index])
         else:
             sentence_sample = self.sentences.copy()
+            
         predictions = self.get_predictions(sentence_sample, classifier)
         weights = []
         for (label, pred) in predictions:
