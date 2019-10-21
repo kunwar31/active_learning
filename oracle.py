@@ -2,14 +2,17 @@ import os
 import random
 import pandas as pd
 from typing import List
-from .flair.data import Sentence
-from .flair.datasets import CSVClassificationCorpus
+from flair.data import Sentence
+from flair.datasets import CSVClassificationCorpus
 from time import time
 
 
-def read_csv(file_name):
+def read_csv(file_name, skip_header):
     print(file_name)
-    data = pd.read_csv(file_name, header=None)
+    if not skip_header:
+        data = pd.read_csv(file_name, header=None)
+    else:
+        data = pd.read_csv(file_name)
     for line in data.values:
         if len(line) == 2:
             yield line[0], line[1]
@@ -36,11 +39,11 @@ class MemoryOracle(Oracle):
             for file in files:
                 if file.split('.')[-1] == 'csv' and file.find('labelled_') >= 0:
                     if os.path.basename(root) != '.':
-                        csv_file_list.append(os.path.basename(root) + file)
+                        csv_file_list.append(os.path.basename(root) + '/' + file)
                     else:
                         csv_file_list.append(file)
         for file in csv_file_list:
-            for sample, label in read_csv(file):
+            for sample, label in read_csv(file, False):
                 self.memory[sample] = label
 
     def get_label(self, sample):
@@ -77,6 +80,7 @@ class HybridOracle(Oracle):
                  all_data_file,
                  valid_file='valid.txt',
                  test_file='test.txt',
+                 skip_header=True,
                  use_memory=True,
                  use_rules=False,
                  memory=None,
@@ -89,11 +93,19 @@ class HybridOracle(Oracle):
         self.experiment_name = experiment_name
         if not os.path.exists(self.experiment_name):
             os.mkdir(self.experiment_name)
-        self.all_data = list(read_csv(all_data_file))
-        self.valid_file = self.experiment_name + '/' + valid_file
-        self.test_file = self.experiment_name + '/' + test_file
+        self.all_data = list(read_csv(all_data_file, skip_header))
+        self.valid_file = valid_file.split('/')[-1]
+        self.test_file = test_file.split('/')[-1]
+        if os.path.exists(valid_file):
+            os.system(f'cp {valid_file} {self.experiment_name}/')
+        if os.path.exists(test_file):
+            os.system(f'cp {test_file} {self.experiment_name}/')
+        self.skip_header = skip_header
         self.use_memory = use_memory
         self.use_rules = use_rules
+        if memory is None and len(self.all_data) > 0 and len(self.all_data[0]) == 2:
+            print('Starting with labelled data')
+            memory = dict([[Sentence(x).to_plain_string(), y] for x, y in self.all_data])
         if self.use_memory:
             self.memory_oracle = MemoryOracle(memory)
         if self.use_rules:
@@ -122,7 +134,7 @@ class HybridOracle(Oracle):
 
     @staticmethod
     def _sentencify(l):
-        return [Sentence(s) for s in l]
+        return [Sentence(s[0]) for s in l]
 
     def get_all_sentences(self):
         return self._sentencify(self.all_data)
@@ -139,12 +151,12 @@ class HybridOracle(Oracle):
         return label
 
     def get_labelled_corpus(self, samples: List[Sentence]):
-        train_file_name = f'labelled_{len(samples)}_{int(time())}.csv'
+        train_file_name = str(f'labelled_{len(samples)}_{int(time())}.csv')
         self.save_labelled_csv(samples, train_file_name)
         corpus = CSVClassificationCorpus(data_folder=self.experiment_name,
                                          column_name_map={0: 'text', 1: 'label'},
                                          train_file=train_file_name,
-                                         valid_file=self.valid_file,
+                                         dev_file=self.valid_file,
                                          test_file=self.test_file,
                                          skip_header=False)
         return corpus
@@ -157,7 +169,7 @@ class HybridOracle(Oracle):
             label = self.get_label(sample)
             labels.append(label)
             if self.use_memory and label is not None:
-                self.memory_oracle.memory[sample.to_plain_string()] = label
+                self.memory_oracle.memory[sample] = label
         return labels
 
     def save_labelled_csv(self, samples: List[Sentence], file_name):
@@ -171,7 +183,7 @@ class HybridOracle(Oracle):
                 break
             labels = self._get_labels_for_samples(samples)
 
-        with open(file_name, 'w') as f:
+        with open(f'{self.experiment_name}/{file_name}', 'w') as f:
             for idx in range(len(samples)):
                 f.write(f'"{samples[idx].to_plain_string()}", {labels[idx]}\n')
 
